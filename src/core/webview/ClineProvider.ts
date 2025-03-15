@@ -66,12 +66,14 @@ type SecretKey =
 	| "authNonce"
 	| "asksageApiKey"
 	| "xaiApiKey"
+	| "sambanovaApiKey"
 type GlobalStateKey =
 	| "apiProvider"
 	| "apiModelId"
 	| "awsRegion"
 	| "awsUseCrossRegionInference"
 	| "awsBedrockUsePromptCache"
+	| "awsBedrockEndpoint"
 	| "awsProfile"
 	| "awsUseProfile"
 	| "vertexProjectId"
@@ -578,6 +580,13 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 							await this.togglePlanActModeWithChatSettings(message.chatSettings, message.chatContent)
 						}
 						break
+					case "optionsResponse":
+						await this.postMessageToWebview({
+							type: "invoke",
+							invoke: "sendMessage",
+							text: message.text,
+						})
+						break
 					// case "relaunchChromeDebugMode":
 					// 	if (this.cline) {
 					// 		this.cline.browserSession.relaunchChromeDebugMode()
@@ -1044,6 +1053,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 				case "gemini":
 				case "asksage":
 				case "openai-native":
+				case "qwen":
 				case "deepseek":
 					await this.updateGlobalState("previousModeModelId", apiConfiguration.apiModelId)
 					break
@@ -1084,6 +1094,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 					case "gemini":
 					case "asksage":
 					case "openai-native":
+					case "qwen":
 					case "deepseek":
 						await this.updateGlobalState("apiModelId", newModelId)
 						break
@@ -1189,6 +1200,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			awsRegion,
 			awsUseCrossRegionInference,
 			awsBedrockUsePromptCache,
+			awsBedrockEndpoint,
 			awsProfile,
 			awsUseProfile,
 			vertexProjectId,
@@ -1225,6 +1237,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			xaiApiKey,
 			thinkingBudgetTokens,
 			clineApiKey,
+			sambanovaApiKey,
 		} = apiConfiguration
 		await this.updateGlobalState("apiProvider", apiProvider)
 		await this.updateGlobalState("apiModelId", apiModelId)
@@ -1236,6 +1249,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		await this.updateGlobalState("awsRegion", awsRegion)
 		await this.updateGlobalState("awsUseCrossRegionInference", awsUseCrossRegionInference)
 		await this.updateGlobalState("awsBedrockUsePromptCache", awsBedrockUsePromptCache)
+		await this.updateGlobalState("awsBedrockEndpoint", awsBedrockEndpoint)
 		await this.updateGlobalState("awsProfile", awsProfile)
 		await this.updateGlobalState("awsUseProfile", awsUseProfile)
 		await this.updateGlobalState("vertexProjectId", vertexProjectId)
@@ -1272,6 +1286,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		await this.updateGlobalState("asksageApiUrl", asksageApiUrl)
 		await this.updateGlobalState("thinkingBudgetTokens", thinkingBudgetTokens)
 		await this.storeSecret("clineApiKey", clineApiKey)
+		await this.storeSecret("sambanovaApiKey", sambanovaApiKey)
 		if (this.cline) {
 			this.cline.api = buildApiHandler(apiConfiguration)
 		}
@@ -2023,6 +2038,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			awsRegion,
 			awsUseCrossRegionInference,
 			awsBedrockUsePromptCache,
+			awsBedrockEndpoint,
 			awsProfile,
 			awsUseProfile,
 			vertexProjectId,
@@ -2070,6 +2086,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			asksageApiUrl,
 			xaiApiKey,
 			thinkingBudgetTokens,
+			sambanovaApiKey,
 			planActSeparateModelsSettingRaw,
 		] = await Promise.all([
 			this.getGlobalState("apiProvider") as Promise<ApiProvider | undefined>,
@@ -2083,6 +2100,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			this.getGlobalState("awsRegion") as Promise<string | undefined>,
 			this.getGlobalState("awsUseCrossRegionInference") as Promise<boolean | undefined>,
 			this.getGlobalState("awsBedrockUsePromptCache") as Promise<boolean | undefined>,
+			this.getGlobalState("awsBedrockEndpoint") as Promise<string | undefined>,
 			this.getGlobalState("awsProfile") as Promise<string | undefined>,
 			this.getGlobalState("awsUseProfile") as Promise<boolean | undefined>,
 			this.getGlobalState("vertexProjectId") as Promise<string | undefined>,
@@ -2130,6 +2148,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			this.getGlobalState("asksageApiUrl") as Promise<string | undefined>,
 			this.getSecret("xaiApiKey") as Promise<string | undefined>,
 			this.getGlobalState("thinkingBudgetTokens") as Promise<number | undefined>,
+			this.getSecret("sambanovaApiKey") as Promise<string | undefined>,
 			this.getGlobalState("planActSeparateModelsSetting") as Promise<boolean | undefined>,
 		])
 
@@ -2184,6 +2203,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 				awsRegion,
 				awsUseCrossRegionInference,
 				awsBedrockUsePromptCache,
+				awsBedrockEndpoint,
 				awsProfile,
 				awsUseProfile,
 				vertexProjectId,
@@ -2220,6 +2240,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 				asksageApiKey,
 				asksageApiUrl,
 				xaiApiKey,
+				sambanovaApiKey,
 			},
 			lastShownAnnouncementId,
 			customInstructions,
@@ -2366,6 +2387,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			"liteLlmApiKey",
 			"asksageApiKey",
 			"xaiApiKey",
+			"sambanovaApiKey",
 		]
 		for (const key of secretKeys) {
 			await this.storeSecret(key, undefined)
