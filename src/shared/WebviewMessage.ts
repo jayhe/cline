@@ -5,6 +5,7 @@ import { ChatSettings } from "./ChatSettings"
 import { UserInfo } from "./UserInfo"
 import { ChatContent } from "./ChatContent"
 import { TelemetrySetting } from "./TelemetrySetting"
+import { Prompt } from "../types/prompts"
 
 export interface WebviewMessage {
 	type:
@@ -61,6 +62,13 @@ export interface WebviewMessage {
 		| "invoke"
 		| "updateSettings"
 		| "clearAllTaskHistory"
+		| "getPrompts"
+		| "addPrompt"
+		| "editPrompt"
+		| "deletePrompt"
+		| "usePrompt"
+		| "exportPrompts"
+		| "importPrompts"
 	// | "relaunchChromeDebugMode"
 	text?: string
 	disabled?: boolean
@@ -88,6 +96,13 @@ export interface WebviewMessage {
 	planActSeparateModelsSetting?: boolean
 	telemetrySetting?: TelemetrySetting
 	customInstructionsSetting?: string
+	promptId?: string
+
+	// For prompts
+	prompt?: Partial<Prompt>
+
+	// For invoke actions
+	invoke?: "sendMessage" | "primaryButtonClick" | "secondaryButtonClick" | "setChatBoxMessage"
 }
 
 export type ClineAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse"

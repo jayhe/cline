@@ -8,6 +8,7 @@ import { ChatSettings } from "./ChatSettings"
 import { HistoryItem } from "./HistoryItem"
 import { McpServer, McpMarketplaceCatalog, McpMarketplaceItem, McpDownloadResponse } from "./mcp"
 import { TelemetrySetting } from "./TelemetrySetting"
+import { Prompt } from "../types/prompts"
 
 // webview will hold state
 export interface ExtensionMessage {
@@ -34,7 +35,9 @@ export interface ExtensionMessage {
 		| "openGraphData"
 		| "isImageUrlResult"
 		| "didUpdateSettings"
+		| "promptsUpdated"
 	text?: string
+	prompts?: Prompt[]
 	action?:
 		| "chatButtonClicked"
 		| "mcpButtonClicked"
@@ -71,7 +74,7 @@ export interface ExtensionMessage {
 	isImage?: boolean
 }
 
-export type Invoke = "sendMessage" | "primaryButtonClick" | "secondaryButtonClick"
+export type Invoke = "sendMessage" | "primaryButtonClick" | "secondaryButtonClick" | "setChatBoxMessage"
 
 export type Platform = "aix" | "darwin" | "freebsd" | "linux" | "openbsd" | "sunos" | "win32" | "unknown"
 

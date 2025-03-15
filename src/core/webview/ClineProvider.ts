@@ -36,7 +36,11 @@ import { telemetryService } from "../../services/telemetry/TelemetryService"
 import { TelemetrySetting } from "../../shared/TelemetrySetting"
 import { cleanupLegacyCheckpoints } from "../../integrations/checkpoints/CheckpointMigration"
 import CheckpointTracker from "../../integrations/checkpoints/CheckpointTracker"
-
+import { ACTION_NAMES } from "../CodeActionProvider"
+import { CustomSupportPrompts, supportPrompt } from "../../shared/support-prompt"
+import delay from "delay"
+import { PromptsManager } from "../../prompts/PromptsManager"
+import { Prompt } from "../../types/prompts"
 /*
 https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
 
@@ -125,6 +129,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	workspaceTracker?: WorkspaceTracker
 	mcpHub?: McpHub
 	private latestAnnouncementId = "feb-19-2025" // update to some unique identifier when we add a new announcement
+	private promptsManager: PromptsManager
 
 	constructor(
 		readonly context: vscode.ExtensionContext,
@@ -134,6 +139,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		ClineProvider.activeInstances.add(this)
 		this.workspaceTracker = new WorkspaceTracker(this)
 		this.mcpHub = new McpHub(this)
+		this.promptsManager = PromptsManager.getInstance(context)
 
 		// Clean up legacy checkpoints
 		cleanupLegacyCheckpoints(this.context.globalStorageUri.fsPath, this.outputChannel).catch((error) => {
@@ -909,6 +915,89 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 						await this.deleteAllTaskHistory()
 						await this.postStateToWebview()
 						this.postMessageToWebview({ type: "relinquishControl" })
+						break
+					}
+					case "getPrompts": {
+						const prompts = await this.promptsManager.getPrompts()
+						this.postMessageToWebview({
+							type: "promptsUpdated",
+							prompts,
+						})
+						break
+					}
+					case "addPrompt": {
+						if (message.prompt) {
+							await this.promptsManager.addPrompt(message.prompt)
+							const promptsAfterAdd = await this.promptsManager.getPrompts()
+							this.postMessageToWebview({
+								type: "promptsUpdated",
+								prompts: promptsAfterAdd,
+							})
+						}
+						break
+					}
+					case "editPrompt": {
+						if (message.prompt) {
+							await this.promptsManager.editPrompt(message.prompt)
+							const promptsAfterEdit = await this.promptsManager.getPrompts()
+							this.postMessageToWebview({
+								type: "promptsUpdated",
+								prompts: promptsAfterEdit,
+							})
+						}
+						break
+					}
+					case "deletePrompt": {
+						if (message.promptId) {
+							await this.promptsManager.deletePrompt(message.promptId)
+							const promptsAfterDelete = await this.promptsManager.getPrompts()
+							this.postMessageToWebview({
+								type: "promptsUpdated",
+								prompts: promptsAfterDelete,
+							})
+						}
+						break
+					}
+					case "usePrompt": {
+						if (message.prompt && message.prompt.id && message.prompt.name && message.prompt.content) {
+							const prompt: Prompt = {
+								id: message.prompt.id,
+								name: message.prompt.name,
+								content: message.prompt.content,
+								description: message.prompt.description || "",
+								category: message.prompt.category || "",
+								tags: message.prompt.tags || [],
+								createdAt: message.prompt.createdAt || new Date().toISOString(),
+								updatedAt: message.prompt.updatedAt || new Date().toISOString(),
+							}
+							await this.promptsManager.usePrompt(prompt)
+						}
+						break
+					}
+					case "exportPrompts": {
+						const result = await vscode.window.showSaveDialog({
+							filters: {
+								JSON: ["json"],
+							},
+							defaultUri: vscode.Uri.file("prompts.json"),
+						})
+						if (result) {
+							await this.promptsManager.exportPrompts(result.fsPath)
+						}
+						break
+					}
+					case "importPrompts": {
+						const result = await vscode.window.showOpenDialog({
+							canSelectFiles: true,
+							canSelectFolders: false,
+							canSelectMany: false,
+							filters: {
+								JSON: ["json"],
+							},
+						})
+						if (result && result[0]) {
+							await this.promptsManager.importPrompts(result[0].fsPath)
+						}
 						break
 					}
 					// Add more switch case statements here as more webview message commands
@@ -2291,5 +2380,149 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			type: "action",
 			action: "chatButtonClicked",
 		})
+	}
+
+	public static async handleCodeAction(
+		command: string,
+		promptType: keyof typeof ACTION_NAMES,
+		params: Record<string, string | any[]>,
+	): Promise<void> {
+		const visibleProvider = await ClineProvider.getInstance()
+		if (!visibleProvider) {
+			return
+		}
+
+		const prompt = supportPrompt.create(promptType, params, {})
+
+		if (command.endsWith("addToContext")) {
+			await visibleProvider.postMessageToWebview({
+				type: "invoke",
+				invoke: "setChatBoxMessage",
+				text: prompt,
+			})
+
+			return
+		}
+
+		if (command.endsWith("InCurrentTask")) {
+			await visibleProvider.postMessageToWebview({
+				type: "invoke",
+				invoke: "sendMessage",
+				text: prompt,
+			})
+
+			return
+		}
+
+		await visibleProvider.initClineWithTask(prompt)
+	}
+
+	public static async getInstance(): Promise<ClineProvider | undefined> {
+		let visibleProvider = ClineProvider.getVisibleInstance()
+
+		// If no visible provider, try to show the sidebar view
+		if (!visibleProvider) {
+			await vscode.commands.executeCommand("claude-dev.SidebarProvider.focus")
+			// Wait briefly for the view to become visible
+			await delay(100)
+			visibleProvider = ClineProvider.getVisibleInstance()
+		}
+
+		// If still no visible provider, return
+		if (!visibleProvider) {
+			return
+		}
+
+		return visibleProvider
+	}
+
+	private async handleMessage(message: WebviewMessage) {
+		switch (message.type) {
+			// ... existing code ...
+			case "getPrompts": {
+				const prompts = await this.promptsManager.getPrompts()
+				this.postMessageToWebview({
+					type: "promptsUpdated",
+					prompts,
+				})
+				break
+			}
+			case "addPrompt": {
+				if (message.prompt) {
+					await this.promptsManager.addPrompt(message.prompt)
+					const promptsAfterAdd = await this.promptsManager.getPrompts()
+					this.postMessageToWebview({
+						type: "promptsUpdated",
+						prompts: promptsAfterAdd,
+					})
+				}
+				break
+			}
+			case "editPrompt": {
+				if (message.prompt) {
+					await this.promptsManager.editPrompt(message.prompt)
+					const promptsAfterEdit = await this.promptsManager.getPrompts()
+					this.postMessageToWebview({
+						type: "promptsUpdated",
+						prompts: promptsAfterEdit,
+					})
+				}
+				break
+			}
+			case "deletePrompt": {
+				if (message.promptId) {
+					await this.promptsManager.deletePrompt(message.promptId)
+					const promptsAfterDelete = await this.promptsManager.getPrompts()
+					this.postMessageToWebview({
+						type: "promptsUpdated",
+						prompts: promptsAfterDelete,
+					})
+				}
+				break
+			}
+			case "usePrompt": {
+				if (message.prompt && message.prompt.id && message.prompt.name && message.prompt.content) {
+					const prompt: Prompt = {
+						id: message.prompt.id,
+						name: message.prompt.name,
+						content: message.prompt.content,
+						description: message.prompt.description || "",
+						category: message.prompt.category || "",
+						tags: message.prompt.tags || [],
+						createdAt: message.prompt.createdAt || new Date().toISOString(),
+						updatedAt: message.prompt.updatedAt || new Date().toISOString(),
+					}
+					await this.promptsManager.usePrompt(prompt)
+				}
+				break
+			}
+			case "exportPrompts": {
+				const result = await vscode.window.showSaveDialog({
+					filters: {
+						JSON: ["json"],
+					},
+					defaultUri: vscode.Uri.file("prompts.json"),
+				})
+				if (result) {
+					await this.promptsManager.exportPrompts(result.fsPath)
+				}
+				break
+			}
+			case "importPrompts": {
+				const result = await vscode.window.showOpenDialog({
+					canSelectFiles: true,
+					canSelectFolders: false,
+					canSelectMany: false,
+					filters: {
+						JSON: ["json"],
+					},
+				})
+				if (result && result[0]) {
+					await this.promptsManager.importPrompts(result[0].fsPath)
+				}
+				break
+			}
+			// ... existing code ...
+		}
 	}
 }

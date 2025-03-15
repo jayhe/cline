@@ -94,6 +94,42 @@
 				"command": "cline.openInNewTab",
 				"title": "Open In New Tab",
 				"category": "Cline"
+			},
+			{
+				"command": "cline.explainCode",
+				"title": "Cline: Explain Code",
+				"category": "Cline"
+			},
+			{
+				"command": "cline.fixCode",
+				"title": "Cline: Fix Code",
+				"category": "Cline"
+			},
+			{
+				"command": "cline.improveCode",
+				"title": "Cline: Improve Code",
+				"category": "Cline"
+			},
+			{
+				"command": "cline.addToContext",
+				"title": "Cline: Add To Context",
+				"category": "Cline"
+			},
+			{
+				"command": "cline.listPrompts",
+				"title": "Cline: 列出提示词"
+			},
+			{
+				"command": "cline.addPrompt",
+				"title": "Cline: 添加提示词"
+			},
+			{
+				"command": "cline.editPrompt",
+				"title": "Cline: 编辑提示词"
+			},
+			{
+				"command": "cline.deletePrompt",
+				"title": "Cline: 删除提示词"
 			}
 		],
 		"menus": {
@@ -122,6 +158,28 @@
 					"command": "cline.settingsButtonClicked",
 					"group": "navigation@5",
 					"when": "view == claude-dev.SidebarProvider"
+				}
+			],
+			"editor/context": [
+				{
+					"command": "cline.explainCode",
+					"when": "editorHasSelection",
+					"group": "0_0cline@1"
+				},
+				{
+					"command": "cline.fixCode",
+					"when": "editorHasSelection",
+					"group": "0_0cline@2"
+				},
+				{
+					"command": "cline.improveCode",
+					"when": "editorHasSelection",
+					"group": "0_0cline@3"
+				},
+				{
+					"command": "cline.addToContext",
+					"when": "editorHasSelection",
+					"group": "0_0cline@4"
 				}
 			]
 		},
@@ -244,6 +302,7 @@
 		"@changesets/cli": "^2.27.12",
 		"@types/chai": "^5.0.1",
 		"@types/diff": "^5.2.1",
+		"@types/jest": "^29.5.14",
 		"@types/mocha": "^10.0.7",
 		"@types/node": "20.x",
 		"@types/should": "^11.2.0",
@@ -275,6 +334,7 @@
 		"@types/get-folder-size": "^3.0.4",
 		"@types/pdf-parse": "^1.1.4",
 		"@types/turndown": "^5.0.5",
+		"@types/uuid": "^10.0.0",
 		"@vscode/codicons": "^0.0.36",
 		"axios": "^1.8.2",
 		"cheerio": "^1.0.0",
@@ -306,6 +366,7 @@
 		"strip-ansi": "^7.1.0",
 		"tree-sitter-wasms": "^0.1.11",
 		"turndown": "^7.2.0",
+		"uuid": "^11.1.0",
 		"web-tree-sitter": "^0.22.6",
 		"zod": "^3.24.2"
 	}

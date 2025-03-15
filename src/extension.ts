@@ -9,6 +9,9 @@ import "./utils/path" // necessary to have access to String.prototype.toPosix
 import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/DiffViewProvider"
 import assert from "node:assert"
 import { telemetryService } from "./services/telemetry/TelemetryService"
+import { CodeActionProvider } from "./core/CodeActionProvider"
+import { registerCodeActions } from "./activate/registerCodeActions"
+import { PromptsManager } from "./prompts/PromptsManager"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -186,6 +189,20 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}
 	context.subscriptions.push(vscode.window.registerUriHandler({ handleUri }))
+
+	// Register code actions
+	const codeActionProvider = new CodeActionProvider()
+	context.subscriptions.push(
+		vscode.languages.registerCodeActionsProvider([{ scheme: "file" }, { scheme: "untitled" }], codeActionProvider, {
+			providedCodeActionKinds: CodeActionProvider.providedCodeActionKinds,
+		}),
+	)
+
+	registerCodeActions(context)
+
+	// 初始化提示词管理器
+	const promptsManager = PromptsManager.getInstance(context)
+	context.subscriptions.push(promptsManager)
 
 	return createClineAPI(outputChannel, sidebarProvider)
 }
